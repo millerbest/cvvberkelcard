@@ -27,3 +27,6 @@ htmlcov/
 .idea/
 
 *.sqlite3
+
+output/
+.DS_Store

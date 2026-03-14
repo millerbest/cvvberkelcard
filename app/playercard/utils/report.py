@@ -1,6 +1,7 @@
 from .. import models
 from pathlib import Path
 import json
+import xlsxwriter
 
 
 def get_missing_players_raw() -> dict[str, list[str]]:
@@ -42,7 +43,56 @@ def write_missing_players_to_json(
 def write_missing_players_to_xlsx(
     missing_players: dict[str, list[str]], output_path: Path
 ) -> None:
-    raise NotImplementedError("Excel output not implemented yet")
+
+    workbook = xlsxwriter.Workbook(output_path)
+    worksheet = workbook.add_worksheet("Players")
+
+    # Page Setup for A4 Printing
+    worksheet.set_paper(9)  # 9 is the code for A4
+    worksheet.set_margins(left=0.5, right=0.5, top=0.7, bottom=0.7)
+    worksheet.set_column("A:C", 25)  # Set column widths
+
+    # Define Formats
+    team_fmt = workbook.add_format({"bold": True, "bg_color": "#D9EAD3", "border": 1})
+    player_fmt = workbook.add_format(
+        {"border": 1}
+    )  # Indent makes it look like a sub-item
+    header_fmt = workbook.add_format(
+        {"bold": True, "font_color": "white", "bg_color": "#38761D"}
+    )
+    max_rows_per_page = 40  # Adjust this based on your font size/A4 height
+
+    current_total_row = 0
+
+    for team_name, players in missing_players.items():
+        # Check if we need to wrap to the next column BEFORE starting a new team
+        # We add +1 for the team header and len(players) for the roster
+        if (current_total_row % max_rows_per_page) + len(
+            players
+        ) + 1 > max_rows_per_page:
+            # Move to the start of the next column block
+            current_total_row = (
+                (current_total_row // max_rows_per_page) + 1
+            ) * max_rows_per_page
+
+        # Calculate current column (0, 1, or 2) and local row (0-39)
+        col = (current_total_row // max_rows_per_page) % 3
+        row = current_total_row % max_rows_per_page
+
+        # Write Team Header
+        worksheet.write(row, col, team_name, team_fmt)
+        current_total_row += 1
+
+        # Write Players
+        for player in players:
+            row = current_total_row % max_rows_per_page
+            # Note: If a team is very long, it might split across columns here
+            worksheet.write(row, col, player, player_fmt)
+            current_total_row += 1
+
+        # Add a spacer row between teams
+        current_total_row += 1
+    workbook.close()
 
 
 def write_missing_players_to_pdf(
