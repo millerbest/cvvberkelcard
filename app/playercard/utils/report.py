@@ -7,7 +7,7 @@ import xlsxwriter
 def get_missing_players_raw() -> dict[str, list[str]]:
     """Get a summary of missing player cards by team, return as a dict"""
     result = {}
-    teams = models.Team.objects.all().distinct()
+    teams = models.Team.objects.all().order_by("pk")
     for team in teams:
         result[team.name] = []
         missing_players = models.PlayerCard.objects.filter(
@@ -58,40 +58,46 @@ def write_missing_players_to_xlsx(
         {"border": 1}
     )  # Indent makes it look like a sub-item
     header_fmt = workbook.add_format(
-        {"bold": True, "font_color": "white", "bg_color": "#38761D"}
+        {
+            "bold": True,
+            "font_color": "white",
+            "bg_color": "#38761D",
+            "align": "center",
+            "valign": "vcenter",
+            "border": 1,
+        }
     )
-    max_rows_per_page = 40  # Adjust this based on your font size/A4 height
+    worksheet.set_column("A:A", 20)
 
-    current_total_row = 0
+    current_row = 1  # Start writing from the second row (Index 1)
+    current_column = 0  # Start from the first column for each team
+
+    MAX_ROW = 40
 
     for team_name, players in missing_players.items():
-        # Check if we need to wrap to the next column BEFORE starting a new team
-        # We add +1 for the team header and len(players) for the roster
-        if (current_total_row % max_rows_per_page) + len(
-            players
-        ) + 1 > max_rows_per_page:
-            # Move to the start of the next column block
-            current_total_row = (
-                (current_total_row // max_rows_per_page) + 1
-            ) * max_rows_per_page
 
-        # Calculate current column (0, 1, or 2) and local row (0-39)
-        col = (current_total_row // max_rows_per_page) % 3
-        row = current_total_row % max_rows_per_page
+        # Write the Team Header Row
+        worksheet.write(current_row, current_column, team_name, team_fmt)
+        current_row += 1
 
-        # Write Team Header
-        worksheet.write(row, col, team_name, team_fmt)
-        current_total_row += 1
-
-        # Write Players
+        # Write each player on a new row under the team
         for player in players:
-            row = current_total_row % max_rows_per_page
-            # Note: If a team is very long, it might split across columns here
-            worksheet.write(row, col, player, player_fmt)
-            current_total_row += 1
+            worksheet.write(current_row, current_column, player, player_fmt)
+            current_row += 1
 
-        # Add a spacer row between teams
-        current_total_row += 1
+        # Optional: Add an empty row between teams for visual breathing room
+        current_row += 1
+        if current_row >= MAX_ROW:
+            current_row = 1  # Reset to the second row
+            current_column += 2  # Move to the next set of columns for the next team
+            worksheet.set_column(current_column - 1, current_column - 1, 2)
+            worksheet.set_column(current_column, current_column, 20)
+    # Setup Headers
+    # TODO： combine cells and center the header text across the top of the page
+    worksheet.merge_range(
+        0, 0, 0, current_column, "C.V.V BERKEL VOETBALPLAATJESACTIE", header_fmt
+    )
+
     workbook.close()
 
 
