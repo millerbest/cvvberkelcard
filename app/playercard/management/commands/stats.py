@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from playercard.models import Team, PlayerCard
+from django.db.models import Sum
 
 
 def calculate_statistics():
@@ -69,10 +70,15 @@ class Command(BaseCommand):
         collected_cards = PlayerCard.objects.filter(is_collected=True).count()
         uncollected_cards = total_cards - collected_cards
         collection_rate = (collected_cards / total_cards) if total_cards > 0 else 0
+        duplicated_count = PlayerCard.objects.aggregate(
+            total_duplicates=Sum("duplicate_count")
+        )["total_duplicates"]
         self.stdout.write(f"Total Cards: {total_cards}")
         self.stdout.write(f"Collected Cards: {collected_cards}")
         self.stdout.write(f"Uncollected Cards: {uncollected_cards}")
         self.stdout.write(f"Collection Rate: {collection_rate:.2%}")
+        self.stdout.write(f"Duplicate Cards: {duplicated_count}")
+        self.stdout.write("\n")
 
     def _print_stats_per_team(self):
         teams = PlayerCard.objects.values_list("team__name", flat=True).distinct()

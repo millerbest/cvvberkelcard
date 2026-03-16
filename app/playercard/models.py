@@ -13,6 +13,7 @@ class PlayerCard(models.Model):
     name = models.CharField(max_length=100)
     team = ForeignKey(Team, on_delete=models.CASCADE, related_name="player_cards")
     is_collected = models.BooleanField(default=False)
+    duplicate_count = models.IntegerField(default=0)
 
     def __str__(self):
         return f"{self.name} - {self.team.name}"
